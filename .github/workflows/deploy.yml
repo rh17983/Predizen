@@ -1,0 +1,59 @@
+name: FastAPI CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev     # Run tests on push to dev
+  pull_request:
+    types: [closed]  # Detect merged PRs
+    branches:
+      - main   # Run tests + deploy when dev is merged into main
+
+jobs:
+  test:
+    name: Run Pytest
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: pytest
+
+  deploy:
+    name: Deploy with Terraform
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.4.6
+
+    - name: Terraform Init
+      working-directory: terraform
+      run: terraform init
+
+    - name: Terraform Apply
+      working-directory: terraform
+      env:
+        TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_key: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+        TF_VAR_github_repo: ${{ secrets.REPO_NAME }}
+      run: terraform apply -auto-approve
