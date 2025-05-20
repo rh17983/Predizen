@@ -14,6 +14,15 @@ class InputModel(BaseModel):
     number: int
     word: str
 
+
+@app.get("/")
+def read_root():
+    """
+    Root endpoint to check if the server is running.
+    """
+
+    return {"message": "Hello from FastAPI!"}
+
 # Route to process input
 @app.post("/process")
 def process(data: InputModel):
