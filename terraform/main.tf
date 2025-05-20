@@ -4,10 +4,20 @@ provider "aws" {
   secret_key = var.aws_secret_key
 }
 
+resource "tls_private_key" "deploy_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "deployer" {
+  key_name   = var.key_name
+  public_key = tls_private_key.deploy_key.public_key_openssh
+}
+
 resource "aws_instance" "fastapi_server" {
-  ami           = "ami-0c02fb55956c7d316"  # Amazon Linux 2
+  ami           = "ami-0c02fb55956c7d316"
   instance_type = "t2.micro"
-  key_name      = var.key_name  # SSH key pair name
+  key_name      = aws_key_pair.deployer.key_name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -27,11 +37,11 @@ resource "aws_instance" "fastapi_server" {
   }
 }
 
-resource "aws_key_pair" "deployer" {
-  key_name   = var.key_name
-  public_key = file(var.public_key_path)
-}
-
 output "public_ip" {
   value = aws_instance.fastapi_server.public_ip
+}
+
+output "private_key" {
+  value     = tls_private_key.deploy_key.private_key_pem
+  sensitive = true
 }
