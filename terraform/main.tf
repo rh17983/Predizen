@@ -23,6 +23,10 @@ resource "aws_security_group" "fastapi_http" {
   description = "Allow HTTP traffic"
   vpc_id      = data.aws_vpc.default.id  # Now valid
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   ingress {
     from_port   = 80
     to_port     = 80
